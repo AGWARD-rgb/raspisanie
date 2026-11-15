@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#081426">
+  <title>Статистика посещений</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{color-scheme:dark;--bg:#07111f;--panel:#0d1d32;--panel2:#10243d;--line:#1d3856;--text:#edf6ff;--muted:#91a9c2;--blue:#42a5ff;--cyan:#35d5cf;--red:#ff7185}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#12345a 0,transparent 42%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;min-height:100vh}
+    .wrap{width:min(1100px,calc(100% - 32px));margin:0 auto;padding:38px 0 60px}
+    header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:28px}
+    .brand{display:flex;align-items:center;gap:13px}.logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--cyan));display:grid;place-items:center;color:#061526;font-weight:900;font-size:20px;box-shadow:0 8px 28px #35d5cf30}
+    h1{font-size:clamp(22px,4vw,30px);margin:0;letter-spacing:-.5px}.sub{color:var(--muted);font-size:13px;margin-top:3px}
+    button{border:0;border-radius:11px;padding:11px 16px;font-weight:700;cursor:pointer;color:#061526;background:linear-gradient(120deg,var(--blue),var(--cyan))}
+    button.secondary{background:#172d46;color:#dcecff;border:1px solid var(--line)}
+    .login{max-width:420px;margin:9vh auto 0;background:#0d1d32;border:1px solid var(--line);padding:28px;border-radius:22px;box-shadow:0 22px 70px #0006}
+    .login h2{margin:0 0 7px}.login p{color:var(--muted);margin:0 0 22px}
+    label{display:block;color:#bfd2e7;font-size:13px;margin:14px 0 7px}
+    input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid var(--line);background:#081729;color:var(--text);outline:none}
+    input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #42a5ff20}
+    .login button{width:100%;margin-top:20px}.error{color:var(--red);font-size:13px;margin-top:13px;min-height:18px}
+    .hidden{display:none!important}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:20px 0}
+    .periods{display:flex;gap:7px;background:#0d1d32;padding:5px;border:1px solid var(--line);border-radius:13px}
+    .periods button{background:transparent;color:var(--muted);padding:8px 13px}.periods button.active{background:#1c4264;color:#fff}
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+    .card,.panel{background:linear-gradient(145deg,#10243b,#0b1a2d);border:1px solid var(--line);border-radius:18px}
+    .card{padding:20px;min-height:132px}.label{color:var(--muted);font-size:13px}.value{font-size:clamp(27px,5vw,38px);font-weight:800;letter-spacing:-1px;margin-top:12px}.hint{font-size:12px;color:#7894b1;margin-top:2px}
+    .panel{padding:21px;margin-top:17px}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.panel h2{font-size:17px;margin:0}.chartbox{height:260px;position:relative}canvas{width:100%;height:100%;display:block}
+    .bottom{display:grid;grid-template-columns:1fr 1fr;gap:17px}.list{display:grid;gap:11px}.row{display:flex;justify-content:space-between;gap:15px;color:#cfe0f2;font-size:14px}.row span:last-child{color:var(--cyan);font-weight:700}
+    .status{color:var(--muted);font-size:12px}.notice{color:var(--muted);font-size:12px;margin-top:18px}
+    @media(max-width:700px){.wrap{padding-top:24px}.cards{grid-template-columns:1fr}.card{min-height:105px}.value{margin-top:5px}.bottom{grid-template-columns:1fr}.chartbox{height:220px}header{align-items:flex-start}}
+  </style>
+</head>
+<body>
+  <section id="login" class="login">
+    <div class="brand"><div class="logo">№5</div><div><h2>Панель статистики</h2><div class="sub">Расписание гимназии №5</div></div></div>
+    <p>Войди, чтобы посмотреть посещаемость сайта.</p>
+    <form id="loginForm">
+      <label for="email">Электронная почта</label><input id="email" type="email" autocomplete="username" required>
+      <label for="password">Пароль</label><input id="password" type="password" autocomplete="current-password" required>
+      <button type="submit" id="loginBtn">Войти</button>
+      <div id="loginError" class="error"></div>
+    </form>
+  </section>
+
+  <main id="dashboard" class="wrap hidden">
+    <header>
+      <div class="brand"><div class="logo">№5</div><div><h1>Статистика посещений</h1><div class="sub">Аналитика сайта расписания</div></div></div>
+      <button class="secondary" id="logoutBtn">Выйти</button>
+    </header>
+    <div class="toolbar">
+      <div class="status" id="updated">Загрузка данных…</div>
+      <div class="periods" aria-label="Период графика">
+        <button data-days="7" class="active">7 дней</button><button data-days="30">30 дней</button><button data-days="90">90 дней</button>
+      </div>
+    </div>
+    <section class="cards">
+      <article class="card"><div class="label">Всего посещений</div><div class="value" id="total">—</div><div class="hint">За всё время</div></article>
+      <article class="card"><div class="label">Уникальные посетители</div><div class="value" id="unique">—</div><div class="hint">Уникальные браузеры за всё время</div></article>
+      <article class="card"><div class="label">Посещения за период</div><div class="value" id="periodTotal">—</div><div class="hint" id="periodHint">За последние 7 дней</div></article>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Посещения по дням</h2><span class="status" id="chartCaption">7 дней</span></div>
+      <div class="chartbox"><canvas id="chart"></canvas></div>
+    </section>
+    <div class="bottom">
+      <section class="panel"><div class="panel-head"><h2>Популярные страницы</h2></div><div class="list" id="pages"></div></section>
+      <section class="panel"><div class="panel-head"><h2>Последние посещения</h2></div><div class="list" id="recent"></div></section>
+    </div>
+    <div class="notice">Уникальные посетители определяются по браузеру устройства. Один человек может учитываться несколько раз, если использует разные браузеры или устройства.</div>
+  </main>
+
+<script>
+(() => {
+  const SUPABASE_URL = 'https://pmqjuwrahyuffkmnscer.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_fJV8vZA32qD3IGSBZgoJ0Q_IQC9TyIk';
+  const OWNER_UID = '2ab3886d-90e2-44e7-8995-4ed09270b78b';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = id => document.getElementById(id);
+  let allRows = [], days = 7;
+
+  function showDashboard(show) {
+    $('login').classList.toggle('hidden', show);
+    $('dashboard').classList.toggle('hidden', !show);
+  }
+  function fmt(n) { return new Intl.NumberFormat('ru-RU').format(n); }
+  function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function shortDate(d) { return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'}); }
+
+  async function fetchAllRows() {
+    let rows = [], from = 0, step = 1000;
+    while (true) {
+      const {data,error} = await db.from('visits').select('visitor_id,page,created_at').order('created_at',{ascending:false}).range(from,from+step-1);
+      if (error) throw error;
+      rows = rows.concat(data || []);
+      if (!data || data.length < step) break;
+      from += step;
+    }
+    return rows;
+  }
+  function render() {
+    $('total').textContent = fmt(allRows.length);
+    $('unique').textContent = fmt(new Set(allRows.map(r=>r.visitor_id).filter(Boolean)).size);
+    const now = new Date(), start = new Date(now); start.setHours(0,0,0,0); start.setDate(start.getDate()-days+1);
+    const selected = allRows.filter(r => new Date(r.created_at) >= start);
+    $('periodTotal').textContent = fmt(selected.length);
+    $('periodHint').textContent = `За последние ${days} дней`;
+    $('chartCaption').textContent = `${days} дней`;
+    const counts = {};
+    for(let i=0;i<days;i++){const d=new Date(start);d.setDate(start.getDate()+i);counts[dateKey(d)]=0;}
+    selected.forEach(r=>{const k=dateKey(new Date(r.created_at));if(k in counts)counts[k]++;});
+    drawChart(Object.entries(counts).map(([key,value])=>({date:new Date(key+'T12:00:00'),value})));
+    const pageCounts={}; allRows.forEach(r=>{const p=r.page||'/';pageCounts[p]=(pageCounts[p]||0)+1;});
+    const top=Object.entries(pageCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    $('pages').innerHTML=top.length?top.map(([p,n])=>`<div class="row"><span>${escapeHtml(p)}</span><span>${fmt(n)}</span></div>`).join(''):'<div class="status">Пока нет данных</div>';
+    $('recent').innerHTML=allRows.slice(0,6).map(r=>`<div class="row"><span>${new Date(r.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span><span>${escapeHtml(r.page||'/')}</span></div>`).join('')||'<div class="status">Пока нет данных</div>';
+    $('updated').textContent='Обновлено: '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function drawChart(items) {
+    const canvas=$('chart'), rect=canvas.getBoundingClientRect(), ratio=window.devicePixelRatio||1;
+    canvas.width=Math.max(1,rect.width*ratio);canvas.height=Math.max(1,rect.height*ratio);
+    const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);
+    const w=rect.width,h=rect.height,left=36,right=12,top=14,bottom=34;
+    const max=Math.max(1,...items.map(x=>x.value)), plotH=h-top-bottom, plotW=w-left-right;
+    ctx.font='11px system-ui';ctx.fillStyle='#7894b1';ctx.strokeStyle='#1d3856';ctx.lineWidth=1;
+    for(let i=0;i<=4;i++){const y=top+plotH*i/4;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();ctx.fillText(String(Math.round(max*(4-i)/4)),3,y+4);}
+    const gap=plotW/items.length, barW=Math.max(3,gap*.58);
+    items.forEach((it,i)=>{const bh=it.value/max*(plotH-5),x=left+i*gap+(gap-barW)/2,y=top+plotH-bh;const g=ctx.createLinearGradient(0,y,0,top+plotH);g.addColorStop(0,'#35d5cf');g.addColorStop(1,'#3189ed');ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(x,y,barW,bh,5);ctx.fill();if(days<=7||i%Math.ceil(items.length/6)===0||i===items.length-1){ctx.fillStyle='#91a9c2';ctx.textAlign='center';ctx.fillText(shortDate(it.date),x+barW/2,h-10);}});
+  }
+  async function load() {
+    $('updated').textContent='Загружаю данные…';
+    try { allRows=await fetchAllRows(); render(); }
+    catch(e){$('updated').textContent='Не удалось загрузить статистику: '+(e.message||e);}
+  }
+  $('loginForm').addEventListener('submit',async e=>{
+    e.preventDefault();$('loginError').textContent='';$('loginBtn').disabled=true;$('loginBtn').textContent='Входим…';
+    const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+    $('loginBtn').disabled=false;$('loginBtn').textContent='Войти';
+    if(error){$('loginError').textContent='Не удалось войти. Проверь почту и пароль.';return;}
+    if(data.user.id!==OWNER_UID){await db.auth.signOut();$('loginError').textContent='У этого аккаунта нет доступа к панели.';return;}
+    showDashboard(true);await load();
+  });
+  $('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();showDashboard(false);});
+  document.querySelectorAll('[data-days]').forEach(b=>b.addEventListener('click',()=>{days=Number(b.dataset.days);document.querySelectorAll('[data-days]').forEach(x=>x.classList.toggle('active',x===b));if(allRows.length||$('total').textContent!=='—')render();}));
+  window.addEventListener('resize',()=>{if(!$('dashboard').classList.contains('hidden')&&allRows.length)render();});
+  db.auth.getSession().then(async({data})=>{
+    if(data.session){const {data:userData}=await db.auth.getUser();if(userData.user&&userData.user.id===OWNER_UID){showDashboard(true);await load();}else{await db.auth.signOut();}}
+  });
+})();
+</script>
+</body>
+</html>
