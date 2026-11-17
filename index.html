@@ -122,6 +122,7 @@ function detectBlockLessons(data, cl){
   const row=data[r]||[];
   // Следующий заголовок расписания означает конец текущего блока данных.
 if(row.some(v=>/расписание\s+уроков/i.test(txt(v)))) break;
+  const number=txt(row[numberCol]);
   // Урок учитывается только если в колонке нумерации этого блока стоит номер.
   if(!/^[1-9]\d?$/.test(number)) continue;
   let subject=txt(row[subjectCol]), room=txt(row[subjectCol+1]);
