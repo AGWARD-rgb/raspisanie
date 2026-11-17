@@ -118,7 +118,6 @@ function detectBlockLessons(data, cl){
  const numberCol=group.numberCol;
  const day=getBlockHeading(data,cl);
  const lessons=[];
- const seen=new Set();
  for(let r=cl.row+1;r<data.length;r++){
   const row=data[r]||[];
   // Следующий заголовок расписания означает конец текущего блока данных.
@@ -131,8 +130,6 @@ function detectBlockLessons(data, cl){
    subject=txt(row[subjectCol+1]); room=txt(row[subjectCol+2]);
   }
   if(!subject || subject.length>180) continue;
-  if(seen.has(number)) continue;
-  seen.add(number);
   lessons.push({number,subject,room});
  }
  lessons.sort((a,b)=>Number(a.number)-Number(b.number));
