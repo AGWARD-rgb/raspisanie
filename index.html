@@ -127,7 +127,7 @@ if(row.some(v=>{
 })) break;
 const number=txt(row[numberCol]).trim();
   // Урок учитывается только если в колонке нумерации этого блока стоит номер.
-  if(!/^[1-9]\d?$/.test(number)) continue;
+if(!number) continue;
   let subject=txt(row[subjectCol]), room=txt(row[subjectCol+1]);
   if(!subject && cl.mode==='split'){
    subject=txt(row[subjectCol+1]); room=txt(row[subjectCol+2]);
