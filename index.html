@@ -121,7 +121,9 @@ function detectBlockLessons(data, cl){
  for(let r=cl.row+1;r<data.length;r++){
   const row=data[r]||[];
   // Следующий заголовок расписания означает конец текущего блока данных.
-if(row.some(v=>/расписание\s+уроков/i.test(txt(v)))) break;
+const nextClass = row.some(v => !!classFromCell(v)) ||
+  row.some((v,c) => isGrade(v) && c+1<row.length && /^[А-ЯЁA-Z]$/i.test(txt(row[c+1])));
+if(row.some(v=>/расписание\s+уроков/i.test(txt(v))) || nextClass) break;
   // Урок учитывается только если в колонке нумерации этого блока стоит номер.
   if(!/^[1-9]\d?$/.test(number)) continue;
   let subject=txt(row[subjectCol]), room=txt(row[subjectCol+1]);
