@@ -125,7 +125,7 @@ if(row.some(v=>{
  const c=classFromCell(v);
  return c && (c.grade!==String(cl.grade) || c.letter!==cl.letter);
 })) break;
-  const number=txt(row[numberCol]);
+const number=txt(row[numberCol]).trim();
   // Урок учитывается только если в колонке нумерации этого блока стоит номер.
   if(!/^[1-9]\d?$/.test(number)) continue;
   let subject=txt(row[subjectCol]), room=txt(row[subjectCol+1]);
